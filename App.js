@@ -274,7 +274,7 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000000' }}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       {/* HEADER */}
