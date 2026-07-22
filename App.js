@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -70,35 +70,44 @@ const getInitials = (name) => {
   return name.trim().substring(0, 2).toUpperCase();
 };
 
+/* COMPONENTE PER GENERARE CODICI A BARRE REALI (CODE128) */
 const BarcodeGraphic = ({ code = '', color = '#FFF', height = 52 }) => {
-  const cleanCode = code.replace(/\D/g, '') || '1234567890123';
-  
-  const bars = [];
-  for (let i = 0; i < cleanCode.length; i++) {
-    const digit = parseInt(cleanCode[i], 10);
-    bars.push(digit % 3 + 1);
-    bars.push(1);
-    bars.push((digit + 2) % 4 + 1);
-    bars.push(1);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && containerRef.current && code.trim()) {
+      const renderBarcode = () => {
+        if (window.JsBarcode) {
+          try {
+            window.JsBarcode(containerRef.current, code.trim(), {
+              format: 'CODE128',
+              width: 2,
+              height: height,
+              displayValue: false,
+              margin: 0,
+              background: 'transparent',
+              lineColor: color === '#FFFFFF' || color === '#FFF' ? '#FFFFFF' : color,
+            });
+          } catch (e) {
+            console.warn('Errore generazione barcode:', e);
+          }
+        } else {
+          setTimeout(renderBarcode, 100);
+        }
+      };
+      renderBarcode();
+    }
+  }, [code, color, height]);
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.barcodeContainer, { height }]}>
+        <svg ref={containerRef} style={{ maxHeight: height, maxWidth: '100%' }} />
+      </View>
+    );
   }
 
-  return (
-    <View style={[styles.barcodeContainer, { height }]}>
-      <View style={styles.barcodeBarsRow}>
-        {bars.map((width, idx) => (
-          <View
-            key={idx}
-            style={{
-              width: width * 2,
-              height: '100%',
-              backgroundColor: idx % 2 === 0 ? color : 'transparent',
-              marginRight: 1.5,
-            }}
-          />
-        ))}
-      </View>
-    </View>
-  );
+  return <View style={[styles.barcodeContainer, { height }]} />;
 };
 
 export default function App() {
@@ -117,6 +126,16 @@ export default function App() {
 
   const [isScanning, setIsScanning] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+
+  // Caricamento dinamico della libreria JsBarcode se su Web
+  useEffect(() => {
+    if (Platform.OS === 'web' && !window.JsBarcode) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
 
   const toggleHeaderTap = (index) => {
     if (Platform.OS !== 'web') {
@@ -444,9 +463,10 @@ export default function App() {
               <View style={styles.cameraContainer}>
                 <CameraView
                   style={StyleSheet.absoluteFillObject}
+                  facing="back"
                   onBarcodeScanned={handleBarcodeScanned}
                   barcodeScannerSettings={{
-                    barcodeTypes: ['ean13', 'ean8', 'code128', 'qr', 'upc_a'],
+                    barcodeTypes: ['ean13', 'ean8', 'code128', 'qr', 'upc_a', 'code39'],
                   }}
                 />
                 
@@ -814,13 +834,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  barcodeBarsRow: {
-    flexDirection: 'row',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
   codeRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1016,67 +1029,75 @@ const styles = StyleSheet.create({
   },
 
   cameraContainer: {
-    height: 300,
+    height: 340,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#000000',
   },
   scanOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   viewFinder: {
-    width: 220,
+    width: 240,
     height: 140,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 12,
   },
   corner: {
     position: 'absolute',
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     borderColor: '#FFFFFF',
   },
   topLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
     borderTopLeftRadius: 10,
   },
   topRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
     borderTopRightRadius: 10,
   },
   bottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
     borderBottomLeftRadius: 10,
   },
   bottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
     borderBottomRightRadius: 10,
   },
   scanText: {
-    color: '#8E8E93',
+    color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '600',
     marginTop: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   iosCancelScanButton: {
     marginTop: 20,
-    backgroundColor: '#2C2C2E',
+    backgroundColor: 'rgba(44, 44, 46, 0.85)',
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   iosCancelScanText: {
     color: '#007AFF',
